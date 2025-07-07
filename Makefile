@@ -35,6 +35,9 @@ build: clean
 publish: build
 	twine upload dist/*
 
+publish-test: build
+	twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+
 # Install development dependencies
 dev-install:
 	pip install -e ".[dev]"
