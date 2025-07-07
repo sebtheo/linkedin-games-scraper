@@ -1,0 +1,5 @@
+setuptools==79.0.0
+packaging==25.0
+selenium-wire==5.1.0
+selenium==4.11.2
+blinker==1.7
