@@ -108,7 +108,7 @@ The package uses Selenium with the selenium-wire extension to:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/linkedin-games-scraper.git
+git clone https://github.com/sebtheo/linkedin-games-scraper.git
 cd linkedin-games-scraper
 
 # Install development dependencies

@@ -13,7 +13,7 @@ setup(
     description="A package to solve LinkedIn games by extracting solutions",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/linkedin-games-scraper",
+    url="https://github.com/sebtheo/linkedin-games-scraper",
     packages=find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
