@@ -7,7 +7,7 @@ with open("README.md", encoding="utf-8") as fh:
 
 setup(
     name="linkedin_games_scraper",
-    version="0.1.0",
+    version="0.1.1",
     author="LinkedIn Games Scraper",
     author_email="author@example.com",
     description="A package to solve LinkedIn games by extracting solutions",
