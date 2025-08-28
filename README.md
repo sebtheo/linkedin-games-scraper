@@ -10,6 +10,7 @@ A Python package that automatically solves LinkedIn games by extracting solution
   - Queens
   - Zip
   - Tango
+  - Mini Sudoku
 - Headless operation (no browser window required)
 - Saves solutions to JSON files
 - Simple API for integration into other projects
@@ -72,7 +73,7 @@ try:
     crossclimb_solution = solver.solve_crossclimb()
     print(f"CrossClimb solution: {crossclimb_solution}")
 
-    # Other games: solve_zip(), solve_queens(), solve_tango()
+    # Other games: solve_zip(), solve_queens(), solve_tango(), solve_mini_sudoku()
 finally:
     # Always clean up to close the browser and save results
     results_file = solver.cleanup()
@@ -89,6 +90,21 @@ solver = GameSolver(headless=True, results_dir="my_solutions")
 
 # Solve games...
 solver.solve_all_games()
+```
+
+### Timeouts and Logging
+
+All game solvers use a per-game timeout of 30 seconds by default and produce detailed logs while navigating, switching iframes, clicking the start button, scanning network requests, and extracting solutions.
+
+You can override the timeout per solver method if needed, for example:
+
+```python
+from linkedin_games_scraper import GameSolver
+
+solver = GameSolver(headless=True)
+
+# Increase timeout for Zip to 60 seconds
+zip_solution = solver.solve_zip(timeout_seconds=60)
 ```
 
 ## How It Works
