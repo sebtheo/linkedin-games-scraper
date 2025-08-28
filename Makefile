@@ -8,8 +8,8 @@ clean:
 	rm -rf build/
 	rm -rf dist/
 	rm -rf *.egg-info
-	rm .ruff_cache
-	rm .pytest_cache
+	rm -rf .ruff_cache
+	rm -rf .pytest_cache
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 
