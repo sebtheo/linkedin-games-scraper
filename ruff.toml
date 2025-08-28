@@ -1,15 +1,17 @@
 # Ruff configuration
 target-version = "py38"
-line-length = 100
+line-length = 140
+
+[lint]
 select = ["E", "F", "I", "W", "N", "D", "UP", "S", "B"]
 ignore = ["D203", "D213"]
 
-[per-file-ignores]
+[lint.per-file-ignores]
 "__init__.py" = ["F401", "E402"]
 "tests/*" = ["S101", "D"]
 
-[isort]
+[lint.isort]
 known-first-party = ["linkedin_games_scraper"]
 
-[flake8-quotes]
+[lint.flake8-quotes]
 docstring-quotes = "double"
