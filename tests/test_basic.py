@@ -49,6 +49,7 @@ class TestGameSolver(unittest.TestCase):
         self.assertIn("zip", solver.GAME_URLS)
         self.assertIn("queens", solver.GAME_URLS)
         self.assertIn("tango", solver.GAME_URLS)
+        self.assertIn("mini_sudoku", solver.GAME_URLS)
 
         # Check that game type IDs are defined
         self.assertIn("pinpoint", solver.GAME_TYPE_IDS)
@@ -56,6 +57,7 @@ class TestGameSolver(unittest.TestCase):
         self.assertIn("zip", solver.GAME_TYPE_IDS)
         self.assertIn("queens", solver.GAME_TYPE_IDS)
         self.assertIn("tango", solver.GAME_TYPE_IDS)
+        self.assertIn("mini_sudoku", solver.GAME_TYPE_IDS)
 
 
 if __name__ == "__main__":

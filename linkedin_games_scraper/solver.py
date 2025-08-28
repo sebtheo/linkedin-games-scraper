@@ -24,9 +24,7 @@ logger.setLevel(logging.INFO)
 
 # Create console handler with formatting
 console_handler = logging.StreamHandler()
-console_handler.setFormatter(
-    logging.Formatter(fmt="%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-)
+console_handler.setFormatter(logging.Formatter(fmt="%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
 logger.addHandler(console_handler)
 
 
@@ -40,10 +38,18 @@ class GameSolver:
         "zip": "https://www.linkedin.com/games/zip",
         "queens": "https://www.linkedin.com/games/queens",
         "tango": "https://www.linkedin.com/games/tango",
+        "mini_sudoku": "https://www.linkedin.com/games/mini-sudoku",
     }
 
     # Game type IDs
-    GAME_TYPE_IDS = {"pinpoint": 1, "crossclimb": 2, "queens": 3, "tango": 5, "zip": 6}
+    GAME_TYPE_IDS = {
+        "pinpoint": 1,
+        "crossclimb": 2,
+        "queens": 3,
+        "tango": 5,
+        "zip": 6,
+        "mini_sudoku": 7,
+    }
 
     def __init__(self, headless=True, results_dir=None):
         """Initialise the GameSolver."""
@@ -59,9 +65,7 @@ class GameSolver:
         chrome_options.add_argument(f"--user-data-dir=/tmp/chrome-data-{time.time()}")
 
         # Initialise the driver
-        self.driver = webdriver.Chrome(
-            seleniumwire_options=self.seleniumwire_options, options=chrome_options
-        )
+        self.driver = webdriver.Chrome(seleniumwire_options=self.seleniumwire_options, options=chrome_options)
         self.wait = WebDriverWait(self.driver, 10)
 
         # Initialise results dictionary
@@ -73,7 +77,10 @@ class GameSolver:
 
     def _find_game_response(self, game_type_id):
         """Find game response in requests."""
+        total_requests = 0
+        matched_requests = 0
         for request in self.driver.requests:
+            total_requests += 1
             if not request.response:
                 continue
 
@@ -84,11 +91,17 @@ class GameSolver:
                 and "voyagerIdentityDashGames" in url
                 and "voyagerIdentityDashGamesPages" not in url
             ):
+                matched_requests += 1
+                logger.info(f"Found candidate GraphQL response for gameTypeId {game_type_id}: {url}")
                 try:
                     body = request.response.body.decode("utf-8")
                     return json.loads(body)
                 except Exception as e:
                     logger.error(f"Error parsing response: {str(e)}")
+        if total_requests:
+            logger.info(f"Scanned {total_requests} requests; matched {matched_requests} for gameTypeId {game_type_id}")
+        else:
+            logger.info("No network requests captured yet")
         return None
 
     def _find_pinpoint_solution(self):
@@ -130,6 +143,7 @@ class GameSolver:
         data = self._find_game_response(self.GAME_TYPE_IDS["zip"])
         if data:
             try:
+                logger.info(f"Zip response keys: {list(data.keys()) if isinstance(data, dict) else type(data)}")
                 sequence = data["included"][0]["gamePuzzle"]["trailGamePuzzle"]["orderedSequence"]
                 solution = data["included"][0]["gamePuzzle"]["trailGamePuzzle"]["solution"]
                 grid = data["included"][0]["gamePuzzle"]["trailGamePuzzle"]["gridSize"]
@@ -197,31 +211,91 @@ class GameSolver:
                 logger.error(f"Error extracting Tango solution: {str(e)}")
         return None
 
-    def _start_game(self, game_url):
+    def _find_mini_sudoku_solution(self):
+        """Find the solution in the Mini Sudoku GraphQL response."""
+        logger.info("Starting Mini Sudoku solution extraction...")
+        data = self._find_game_response(self.GAME_TYPE_IDS["mini_sudoku"])
+        if data:
+            logger.info("Found Mini Sudoku data, extracting solution...")
+            try:
+                mini_sudoku_puzzle = None
+                if "included" in data and data["included"]:
+                    for item in data["included"]:
+                        game_puzzle = item.get("gamePuzzle")
+                        if game_puzzle and game_puzzle.get("miniSudokuGamePuzzle"):
+                            mini_sudoku_puzzle = game_puzzle["miniSudokuGamePuzzle"]
+                            logger.info("Found Mini Sudoku puzzle in included item")
+                            break
+
+                    if not mini_sudoku_puzzle:
+                        logger.error("No Mini Sudoku puzzle found in included array")
+                        for i, item in enumerate(data["included"]):
+                            logger.error(f"Included item {i} keys: {list(item.keys())}")
+                            if "gamePuzzle" in item:
+                                game_puzzle = item["gamePuzzle"]
+                                logger.error(
+                                    f"GamePuzzle types in item {i}: {[k for k in game_puzzle.keys() if game_puzzle[k] is not None]}"
+                                )
+                        return None
+                else:
+                    logger.error("No 'included' array found in response")
+                    logger.error(f"Available keys: {list(data.keys())}")
+                    return None
+
+                solution = mini_sudoku_puzzle["solution"]
+                grid_size = mini_sudoku_puzzle.get("gridRowSize", 6)
+                preset_cells = mini_sudoku_puzzle.get("presetCellIdxes", [])
+                title = mini_sudoku_puzzle.get("name", "Unknown")
+
+                logger.info(f"Mini Sudoku solution for '{title}':")
+                logger.info(f"Grid size: {grid_size}x{grid_size}")
+                logger.info(f"Preset cells: {preset_cells}")
+                logger.info(f"Solution: {solution}")
+
+                for i in range(grid_size):
+                    start_idx = i * grid_size
+                    end_idx = start_idx + grid_size
+                    row = solution[start_idx:end_idx]
+                    logger.info(f"Row {i + 1}: {row}")
+
+                self.results["data"]["mini_sudoku"] = {
+                    "solution": solution,
+                    "grid_size": grid_size,
+                    "preset_cells": preset_cells,
+                    "title": title,
+                }
+                return solution
+            except Exception as e:
+                logger.error(f"Error extracting Mini Sudoku solution: {str(e)}")
+                logger.error(f"Response structure: {data.keys() if isinstance(data, dict) else 'Not a dict'}")
+        else:
+            logger.error("No Mini Sudoku data found")
+        return None
+
+    def _start_game(self, game_url, navigation_timeout=30):
         """Start a game and find its solution."""
         # Clear existing requests
         del self.driver.requests
 
         # Navigate to game
+        logger.info(f"Navigating to game URL: {game_url}")
         self.driver.get(game_url)
 
-        # Wait for the page to load completely with a 2-minute timeout
+        # Wait for the page to load completely with a timeout
         start_time = time.time()
-        timeout = 120  # 2 minutes
+        timeout = navigation_timeout
 
         while time.time() - start_time < timeout:
             try:
-                WebDriverWait(self.driver, 5).until(
-                    lambda d: d.execute_script("return document.readyState") == "complete"
-                )
+                WebDriverWait(self.driver, 5).until(lambda d: d.execute_script("return document.readyState") == "complete")
                 logger.info("Page loaded successfully")
                 break
             except Exception as e:
                 if time.time() - start_time >= timeout:
-                    logger.error("Page load timed out after 2 minutes")
+                    logger.error(f"Page load timed out after {timeout} seconds")
                     return None
                 else:
-                    logger.info(f"Error loading page: {str(e)}")
+                    logger.info(f"Waiting for page load... ({str(e)})")
                 time.sleep(1)
                 continue
 
@@ -229,9 +303,7 @@ class GameSolver:
         try:
             logger.info("Waiting for iframe to be present")
             iframe = WebDriverWait(self.driver, 10).until(
-                expected_conditions.presence_of_element_located(
-                    (By.CSS_SELECTOR, "iframe[title='games']")
-                )
+                expected_conditions.presence_of_element_located((By.CSS_SELECTOR, "iframe[title='games']"))
             )
             logger.info("Found iframe, switching to it")
             self.driver.switch_to.frame(iframe)
@@ -254,70 +326,126 @@ class GameSolver:
             # return None
 
         # Wait for game data to load
+        logger.info("Waiting briefly for network requests to populate...")
         time.sleep(3)
 
-    def solve_pinpoint(self):
+    def solve_pinpoint(self, timeout_seconds: int = 30):
         """Solve the Pinpoint game."""
         logger.info("Solving Pinpoint...")
-        self._start_game(self.GAME_URLS["pinpoint"])
-        solution = self._find_pinpoint_solution()
+        self._start_game(self.GAME_URLS["pinpoint"], navigation_timeout=timeout_seconds)
+        end_time = time.time() + timeout_seconds
+        solution = None
+        while time.time() < end_time and not solution:
+            solution = self._find_pinpoint_solution()
+            if solution:
+                break
+            logger.info("Waiting for Pinpoint solution...")
+            time.sleep(1)
 
         if solution:
             logger.info("SUCCESS - Pinpoint solution found!")
         else:
-            logger.warning("ERROR - No Pinpoint solution found")
+            logger.warning("ERROR - No Pinpoint solution found (timeout)")
 
         return solution
 
-    def solve_crossclimb(self):
+    def solve_crossclimb(self, timeout_seconds: int = 30):
         """Solve the CrossClimb game."""
         logger.info("Solving CrossClimb...")
-        self._start_game(self.GAME_URLS["crossclimb"])
-        solution = self._find_crossclimb_solution()
+        self._start_game(self.GAME_URLS["crossclimb"], navigation_timeout=timeout_seconds)
+        end_time = time.time() + timeout_seconds
+        solution = None
+        while time.time() < end_time and not solution:
+            solution = self._find_crossclimb_solution()
+            if solution:
+                break
+            logger.info("Waiting for CrossClimb solution...")
+            time.sleep(1)
 
         if solution:
             logger.info("SUCCESS - CrossClimb solution found!")
         else:
-            logger.warning("ERROR - No CrossClimb solution found")
+            logger.warning("ERROR - No CrossClimb solution found (timeout)")
 
         return solution
 
-    def solve_zip(self):
+    def solve_zip(self, timeout_seconds: int = 30):
         """Solve the Zip game."""
         logger.info("Solving Zip...")
-        self._start_game(self.GAME_URLS["zip"])
-        solution = self._find_zip_solution()
+        self._start_game(self.GAME_URLS["zip"], navigation_timeout=timeout_seconds)
+        end_time = time.time() + timeout_seconds
+        solution = None
+        while time.time() < end_time and not solution:
+            solution = self._find_zip_solution()
+            if solution:
+                break
+            logger.info("Waiting for Zip solution...")
+            time.sleep(1)
 
         if solution:
             logger.info("SUCCESS - Zip solution found!")
         else:
-            logger.warning("ERROR - No Zip solution found")
+            logger.warning("ERROR - No Zip solution found (timeout)")
 
         return solution
 
-    def solve_queens(self):
+    def solve_queens(self, timeout_seconds: int = 30):
         """Solve the Queens game."""
         logger.info("Solving Queens...")
-        self._start_game(self.GAME_URLS["queens"])
-        solution = self._find_queens_solution()
+        self._start_game(self.GAME_URLS["queens"], navigation_timeout=timeout_seconds)
+        end_time = time.time() + timeout_seconds
+        solution = None
+        while time.time() < end_time and not solution:
+            solution = self._find_queens_solution()
+            if solution:
+                break
+            logger.info("Waiting for Queens solution...")
+            time.sleep(1)
 
         if solution:
             logger.info("SUCCESS - Queens solution found!")
         else:
-            logger.warning("ERROR - No Queens solution found")
+            logger.warning("ERROR - No Queens solution found (timeout)")
 
         return solution
 
-    def solve_tango(self):
+    def solve_tango(self, timeout_seconds: int = 30):
         """Solve the Tango game."""
         logger.info("Solving Tango...")
-        self._start_game(self.GAME_URLS["tango"])
-        solution = self._find_tango_solution()
+        self._start_game(self.GAME_URLS["tango"], navigation_timeout=timeout_seconds)
+        end_time = time.time() + timeout_seconds
+        solution = None
+        while time.time() < end_time and not solution:
+            solution = self._find_tango_solution()
+            if solution:
+                break
+            logger.info("Waiting for Tango solution...")
+            time.sleep(1)
 
         if solution:
             logger.info("SUCCESS - Tango solution found!")
         else:
-            logger.warning("ERROR - No Tango solution found")
+            logger.warning("ERROR - No Tango solution found (timeout)")
+
+        return solution
+
+    def solve_mini_sudoku(self, timeout_seconds: int = 30):
+        """Solve the Mini Sudoku game."""
+        logger.info("Solving Mini Sudoku...")
+        self._start_game(self.GAME_URLS["mini_sudoku"], navigation_timeout=timeout_seconds)
+        end_time = time.time() + timeout_seconds
+        solution = None
+        while time.time() < end_time and not solution:
+            solution = self._find_mini_sudoku_solution()
+            if solution:
+                break
+            logger.info("Waiting for Mini Sudoku solution...")
+            time.sleep(1)
+
+        if solution:
+            logger.info("SUCCESS - Mini Sudoku solution found!")
+        else:
+            logger.warning("ERROR - No Mini Sudoku solution found (timeout)")
 
         return solution
 
@@ -365,6 +493,11 @@ class GameSolver:
             tango_solution = self.solve_tango()
             if tango_solution:
                 results["tango"] = tango_solution
+
+            # Solve Mini Sudoku
+            mini_sudoku_solution = self.solve_mini_sudoku()
+            if mini_sudoku_solution:
+                results["mini_sudoku"] = mini_sudoku_solution
 
         finally:
             self.cleanup()
