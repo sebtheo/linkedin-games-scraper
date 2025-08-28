@@ -9,7 +9,7 @@ setup(
     name="linkedin_games_scraper",
     version="0.1.1",
     author="LinkedIn Games Scraper",
-    author_email="author@example.com",
+    author_email="seb@theo4.uk",
     description="A package to solve LinkedIn games by extracting solutions",
     long_description=long_description,
     long_description_content_type="text/markdown",
