@@ -2,6 +2,12 @@
 
 A Python package that automatically solves LinkedIn games by extracting solutions from network requests.
 
+## Important Links
+
+- **[View the solutions daily at 8am UTC](https://solver.sebtheo.uk/)**
+- [PyPi Package](https://pypi.org/project/linkedin-games-scraper/)
+- [Solutions User Interface](https://github.com/sebtheo/linkedin-games-solver-ui)
+
 ## Features
 
 - Solves all LinkedIn daily games:
