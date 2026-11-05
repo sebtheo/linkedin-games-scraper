@@ -1,0 +1,13 @@
+{
+  "included": [
+    {
+      "gamePuzzle": {
+        "blueprintGamePuzzle": {
+          "solutions": [
+            "Terms that come after stone"
+          ]
+        }
+      }
+    }
+  ]
+}
