@@ -25,7 +25,7 @@ setup(
         "selenium-wire>=5.1.0",
         "selenium>=4.0.0",
         "blinker==1.7",
-        "setuptools>=69.0.3",
+        "setuptools>=69.0.3,<82",
     ],
     extras_require={
         "dev": [
